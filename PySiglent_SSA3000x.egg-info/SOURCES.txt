@@ -1,0 +1,9 @@
+LICENSE
+setup.py
+PySiglent_SSA3000x/PySiglent_SSA3000x.py
+PySiglent_SSA3000x/__init__.py
+PySiglent_SSA3000x.egg-info/PKG-INFO
+PySiglent_SSA3000x.egg-info/SOURCES.txt
+PySiglent_SSA3000x.egg-info/dependency_links.txt
+PySiglent_SSA3000x.egg-info/requires.txt
+PySiglent_SSA3000x.egg-info/top_level.txt
