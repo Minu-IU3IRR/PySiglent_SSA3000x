@@ -1,7 +1,7 @@
+import pyvisa
+from numpy import linspace
 
 class PySiglent_SSA3000x:
-    import pyvisa
-    from numpy import linspace
 
     # exceptions
     class Exceptions:
@@ -287,9 +287,11 @@ class PySiglent_SSA3000x:
     
     def get_spectrum(self, trace:Trace):
         """used to gwet the spectrum data in a format like [ [freq_1, level_1], [freq_2, level_2], ...]"""
-        level_data:list = trace.get_data()
-        frequency_points = self.linspace(self.start_frequency, self.stop_frequency, len(level_data))
-        return zip(frequency_points, level_data)
+        level_points = trace.get_data()
+        start_freq = self.start_frequency()
+        stop_freq  = self.stop_frequency()
+        frequency_points = linspace(start_freq, stop_freq, len(level_points))
+        return list(zip(frequency_points, level_points))
 
     # function from manual ------------
 
