@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: PySiglent-SSA3000x
-Version: 0.4
+Version: 0.5
 Summary: module to easily contorl a Siuglent SSA3000x sieries spectrum analyzer and quickly build a measurement setup
 Home-page: https://github.com/Minu-IU3IRR/PySiglent_SSA3000x
 Author: Manuel Minutello

@@ -179,13 +179,14 @@ class PySiglent_SSA3000x:
                 self._set_get(':SENSe]:AVERage:TRACe' +
                               str(self.id), ':CLEar')  # not return
             
-    def __init__(self, VISA_resource_manager: pyvisa.ResourceManager, address, open: bool = True) -> None:
+    def __init__(self, VISA_resource_manager: pyvisa.ResourceManager, address, open: bool = True, debug:bool = False) -> None:
         # insert the VISA resourceManager object and VISA address, if you do not want to connect the SA right away use opne = False and uhan the open() command to connect
         
         self.rm = VISA_resource_manager
         self.address = address
         self.interface = None
         self.connected = False
+        self.debug = debug
 
         # RF
         self.frequency_min = 50.0
@@ -235,13 +236,15 @@ class PySiglent_SSA3000x:
 
     def write(self, data):
         if self.interface is not None:
-            print(f'write ->{data}')
+            if self.debug:
+                print(f'write ->{data}')
             self.interface.write(data)
         else:
             raise self.Exceptions.NotConnected
 
     def query(self, query_string: str):
-        print(f'query ->{query_string}')
+        if self.debug:
+            print(f'query ->{query_string}')
         response = self.interface.query(query_string)
         return response
 
@@ -272,7 +275,8 @@ class PySiglent_SSA3000x:
             if val is None:
                 cmd += '?'
                 val = self.query(cmd)
-                print(f'response ->{val}')
+                if self.debug:
+                    print(f'response ->{val}')
                 return val
             else:
                 cmd += f' {val}'
@@ -281,7 +285,7 @@ class PySiglent_SSA3000x:
         else:
             raise self.Exceptions.NotConnected
     
-    def _string_to_bool(val:str):
+    def _string_to_bool(self, val:str):
         if val in ('1', 'ON'):
             return True
         return False
@@ -377,7 +381,7 @@ class PySiglent_SSA3000x:
         if att is not None and not self.input_att_min <= att <= self.input_att_max:
             raise self.Exceptions.InputAttenuatorOutOfRange(att)
         # todo : test resolution
-        return int(self._set_get(':POWer:ATTenuation', att)
+        return float(self._set_get(':POWer:ATTenuation', att)
 )
     def input_attenuator_auto(self, enable: bool = None):
         """This command turns on/off auto input port attenuator state.
@@ -402,7 +406,7 @@ class PySiglent_SSA3000x:
         """Toggles the vertical graticule divisions between logarithmic (log) unit and linear (lin) unit.
         The default logarithmic unit is dBm, and the linear unit is V.
         Gets scale type."""
-        if scale not in ('lin', 'log'):
+        if scale not in ('lin', 'log', None):
             raise Exception(f'invalid scale {scale}')
         return self._set_get(':DISPlay:WINDow:TRACe:Y:SPACing', scale)[:3].lower()  # LINear -> LINEAR -> LIN -> lin
 
@@ -418,7 +422,7 @@ class PySiglent_SSA3000x:
         """Specifies the resolution bandwidth. For numeric entries, all RBW types choose the nearest (arithmetically, on a linear scale, rounding up) available RBW to the value entered. [Hz]"""
         if rbw is not None and rbw not in self.valid_RBW:
             raise self.Exceptions.Invalid_RBW(rbw)
-        return int(self._set_get(':SENSe:BWIDth:RESolution', rbw))  # discrete
+        return float(self._set_get(':SENSe:BWIDth:RESolution', rbw))  # discrete
 
     def resolution_bw_auto(self, mode: bool = None):
         """Turns on/off auto resolution bandwidth state."""
@@ -428,7 +432,7 @@ class PySiglent_SSA3000x:
         """Specifies the video bandwidth."""
         if vbw is not None and vbw not in self.valid_VBW:
             raise self.Exceptions.Invalid_VBW(vbw)
-        return int(self._set_get(':SENSe:BWIDth:VIDeo', vbw)) #discrete
+        return float(self._set_get(':SENSe:BWIDth:VIDeo', vbw)) #discrete
 
     def video_bw_auto(self, mode: bool = None):
         """This command turns on/off auto video bandwidth state."""
@@ -536,4 +540,4 @@ class PySiglent_SSA3000x:
         Gets sweep numbers, when single sweep on."""
         if number is not None and not self._sweep_number_min <= number <= self._sweep_number_max:
             raise self.Exceptions.InvalidSweepNumber(number)
-        return int(self._set_get(':SENSe:SWEep:COUNt', number))
+        return float(self._set_get(':SENSe:SWEep:COUNt', number))
