@@ -268,15 +268,18 @@ class PySiglent_SSA3000x:
         self.interface.close()
 
     def _set_get(self, cmd: str, val=None):
-        if val is None:
-            cmd += '?'
-            val = self.query(cmd)
-            print(f'response ->{val}')
-            return val
+        if self.connected:
+            if val is None:
+                cmd += '?'
+                val = self.query(cmd)
+                print(f'response ->{val}')
+                return val
+            else:
+                cmd += f' {val}'
+                self.write(cmd)
+                return val
         else:
-            cmd += f' {val}'
-            self.write(cmd)
-            return val
+            raise self.Exceptions.NotConnected
     
     def _string_to_bool(val:str):
         if val in ('1', 'ON'):
