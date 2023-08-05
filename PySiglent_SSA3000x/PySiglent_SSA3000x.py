@@ -367,7 +367,9 @@ class PySiglent_SSA3000x:
         if level is not None and not self.ref_level_min <= level <= self.ref_level_max:
             raise self.Exceptions.ReferenceLevelOutOfRange(level)
         # todo : test resolution
-        return float(self._set_get(':DISPlay:WINDow:TRACe:Y:RLEVel', level + ' dBm'))
+        if level is not None: # build string if level has to be set
+            level = f'{level} dBm'
+        return float(self._set_get(':DISPlay:WINDow:TRACe:Y:RLEVel', level))
 
     def input_attenuator(self, att: int = None):
         """Sets the input attenuator of the spectrum analyzer. [dB]
