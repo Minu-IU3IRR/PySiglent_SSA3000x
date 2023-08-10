@@ -181,6 +181,10 @@ class PySiglent_SSA3000x:
             else:
                 self._set_get(':SENSe]:AVERage:TRACe' +
                               str(self.id), ':CLEar')  # not return
+        
+        def sweep_state(self):
+            """This query command returns True if trace scan is completed else returns False."""
+            return bool(int(self._query_method(f':TRACe:SWEep:STATe? {self.id}')))
             
     def __init__(self, VISA_resource_manager: pyvisa.ResourceManager, address:str = None, open: bool = True, debug:bool = False) -> None:
         # insert the VISA resourceManager object and VISA address, if you do not want to connect the SA right away use opne = False and uhan the open() command to connect
@@ -214,7 +218,7 @@ class PySiglent_SSA3000x:
         self.valid_RBW_VBW_ratio = [
             0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1.0, 3.0, 10.0, 30.0, 100.0, 300.0, 1000.0]
 
-        self.traces = [self.Trace(self._set_get,self.query, i) for i in range(1, 4)]
+        self.traces = [self.Trace(self._set_get,self.query, i) for i in range(1, 5)]
 
         self._valid_math_functions = [
             'Off', 'X-Y+Ref->Z', 'Y-X+Ref->Z', 'X+Y-Ref->Z', 'X+Const->Z', 'X-Const->Z']
@@ -558,7 +562,7 @@ class PySiglent_SSA3000x:
         Gets sweep numbers, when single sweep on."""
         if number is not None and not self._sweep_number_min <= number <= self._sweep_number_max:
             raise self.Exceptions.InvalidSweepNumber(number)
-        return float(self._set_get(':SENSe:SWEep:COUNt', number))
+        return int(float(self._set_get(':SENSe:SWEep:COUNt', number)))
     
     def sweep_continous(self, continuous:bool = True):
         """Sets continuous sweep mode on-off.
