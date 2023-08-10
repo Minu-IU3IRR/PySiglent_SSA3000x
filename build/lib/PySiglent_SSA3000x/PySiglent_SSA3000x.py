@@ -5,6 +5,9 @@ class PySiglent_SSA3000x:
 
     # exceptions
     class Exceptions:
+        class NoAddressSpecified(Exception):
+            def __init__(self) -> None:
+                super().__init__('no visa address specified')
         class NotConnected(Exception):
             def __init__(self) -> None:
                 super().__init__('instrument connection not implemented')
@@ -179,7 +182,7 @@ class PySiglent_SSA3000x:
                 self._set_get(':SENSe]:AVERage:TRACe' +
                               str(self.id), ':CLEar')  # not return
             
-    def __init__(self, VISA_resource_manager: pyvisa.ResourceManager, address, open: bool = True, debug:bool = False) -> None:
+    def __init__(self, VISA_resource_manager: pyvisa.ResourceManager, address:str = None, open: bool = True, debug:bool = False) -> None:
         # insert the VISA resourceManager object and VISA address, if you do not want to connect the SA right away use opne = False and uhan the open() command to connect
         
         self.rm = VISA_resource_manager
@@ -201,7 +204,7 @@ class PySiglent_SSA3000x:
         self.amplitude_offset_min = -300  # dB
         self.amplitude_offset_max = +300
 
-        self.scale_vid_min = 1  # dB
+        self.scale_div_min = 1  # dB
         self.scale_div_max = 10
 
         self.valid_RBW = [10, 30, 100, 300, 1 * 10**3, 3 * 10**3,
@@ -232,7 +235,7 @@ class PySiglent_SSA3000x:
         self._sweep_number_max = 99999
 
         if open:
-            self.open()
+            self.connect()
 
     def write(self, data):
         if self.interface is not None:
@@ -248,11 +251,16 @@ class PySiglent_SSA3000x:
         response = self.interface.query(query_string)
         return response
 
-    def open(self):
+    def connect(self, address:str = None):
+        """conenct VISA device"""
+        if address is not None:  # allow to specify address at connection
+            self.address = address
         try:
-            self.interface = self.rm.open_resource(
+            if self.address is None: # check for valid address
+                raise self.Exceptions.NoAddressSpecified
+            self.interface = self.rm.open_resource( #make interface
                 self.address, read_termination='\n', write_termination='\n')
-            model = self.interface.model_name
+            model = self.interface.model_name #check for correect insturment 
             if model in ('SSA3021X', 'SSA3032X'):
                 self.connected = True
                 # self.setup()  # todo
@@ -265,10 +273,17 @@ class PySiglent_SSA3000x:
         except self.pyvisa.errors.VisaIOError:
             self.connected = False
             raise self.Exceptions.ConnectionError
+        
+        except self.Exceptions.NoAddressSpecified:
+            self.connected = False
+            raise self.Exceptions.NoAddressSpecified
+            
 
-    def close(self):
-        """close connection"""
-        self.interface.close()
+    def disconnect(self):
+        """close VISA connection"""
+        if self.interface is not None:
+            self.interface.close()
+        self.connected = False
 
     def _set_get(self, cmd: str, val=None):
         if self.connected:
@@ -334,7 +349,12 @@ class PySiglent_SSA3000x:
         """Specifies whether the step size is set automatically based on the span.
         Gets center frequency step mode"""
         return self._string_to_bool(self._set_get(':FREQuency:CENTer:STEP:AUTO', enable))
-
+    
+    def freqeuncy_offset(self, offset:int = None):
+        """include a frequency offset in all measurements.
+        gets frequency offset"""
+        return self._set_get(':FREQuency:OFFSet', offset)
+        
     def span(self, frequency: int = None):
         """Sets the frequency span. Setting the span to 0 Hz puts the analyzer into zero span. [Hz]
         Gets span value"""
@@ -373,7 +393,8 @@ class PySiglent_SSA3000x:
         # todo : test resolution
         if level is not None: # build string if level has to be set
             level = f'{level} dBm'
-        return float(self._set_get(':DISPlay:WINDow:TRACe:Y:RLEVel', level))
+        response:str = self._set_get(':DISPlay:WINDow:TRACe:Y:RLEVel', level)
+        return float(response[:response.rfind(' ')])  #remove last chars until space = remove unit like '10.5 dBm' -> '10.4'
 
     def input_attenuator(self, att: int = None):
         """Sets the input attenuator of the spectrum analyzer. [dB]
@@ -398,7 +419,6 @@ class PySiglent_SSA3000x:
         Gets reference offsets."""
         if offset is not None and not self.amplitude_offset_min <= offset <= self.amplitude_offset_max:
             raise self.Exceptions.ReferenceLevelOutOfRange(offset)
-        # todo : test resolution
         return float(self._set_get(':DISPlay:WINDow:TRACe:Y:SCALe:RLEVel:OFFSet', offset))
 
     # amplitude unit not implemented
@@ -410,12 +430,12 @@ class PySiglent_SSA3000x:
             raise Exception(f'invalid scale {scale}')
         return self._set_get(':DISPlay:WINDow:TRACe:Y:SPACing', scale)[:3].lower()  # LINear -> LINEAR -> LIN -> lin
 
-    def scale_div(self, scale_div: float = None):
+    def scale_div(self, scale_div: int = None):
         """This command sets the per-division display scaling for the y-axis when scale type of Y axis is set to Log. [dB]
         Gets Scale/Div when scale type of Y axis is set to Log."""
-        if scale_div is not None and not self.scale_vid_min <= scale_div <= self.scale_div_max:
+        if scale_div is not None and not self.scale_div_min <= scale_div <= self.scale_div_max:
             raise self.Exceptions.ScaleDivOutOfRange(scale_div)
-        return float(self._set_get(':DISPlay:WINDow:TRACe:Y:SCALe:PDIVision', scale_div))
+        return int(float(self._set_get(':DISPlay:WINDow:TRACe:Y:SCALe:PDIVision', scale_div)))
 
     # correction not implemented
     def resolution_bw(self, rbw: int = None):
@@ -455,8 +475,6 @@ class PySiglent_SSA3000x:
         return self._set_get(':SENSe:FILTer:TYPE', filter).lower()  #str
 
     # trace general section
-    def trace_scan_complete(self):
-        return self._string_to_bool(self._set_get(':TRACe:SWEep:STATe', None))
 
     def get_data_format(self, mode: str = None):
         """Sets or gets trace data type. [ASCii, REAL]"""
@@ -541,3 +559,12 @@ class PySiglent_SSA3000x:
         if number is not None and not self._sweep_number_min <= number <= self._sweep_number_max:
             raise self.Exceptions.InvalidSweepNumber(number)
         return float(self._set_get(':SENSe:SWEep:COUNt', number))
+    
+    def sweep_continous(self, continuous:bool = True):
+        """Sets continuous sweep mode on-off.
+        Gets continuous sweep mode state."""
+        self._set_get(':INITiate:CONTinuous',int(continuous))
+    
+    def initiate_sweep(self):
+        """Sets single sweep."""
+        self.write(':INITiate:IMMediate')
