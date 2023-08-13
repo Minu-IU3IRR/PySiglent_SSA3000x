@@ -124,7 +124,7 @@ class PySiglent_SSA3000x:
             self._set_get: function = set_get_method
             self._query_method = query_method
 
-            self._valid_modes = ['WRITe,MAXHold,MINHold,VIEW,BLANk,AVERage']
+            self._valid_modes = ['WRITe','MAXHold','MINHold','VIEW','BLANk','AVERage']
 
             self._valid_detection_type = [
                 'NEGative', 'POSitive', 'SAMPle', 'AVERage', 'NORMAL', 'QUASi']
@@ -253,6 +253,8 @@ class PySiglent_SSA3000x:
         if self.debug:
             print(f'query ->{query_string}')
         response = self.interface.query(query_string)
+        if self.debug:
+            print(f'response -> {response}')
         return response
 
     def connect(self, address:str = None):
@@ -356,7 +358,7 @@ class PySiglent_SSA3000x:
     
     def freqeuncy_offset(self, offset:int = None):
         """include a frequency offset in all measurements.
-        gets frequency offset"""
+        gets frequency offset. NOTE: set start-stop/cf-span before and than apply offset"""
         return self._set_get(':FREQuency:OFFSet', offset)
         
     def span(self, frequency: int = None):
@@ -398,7 +400,10 @@ class PySiglent_SSA3000x:
         if level is not None: # build string if level has to be set
             level = f'{level} dBm'
         response:str = self._set_get(':DISPlay:WINDow:TRACe:Y:RLEVel', level)
-        return float(response[:response.rfind(' ')])  #remove last chars until space = remove unit like '10.5 dBm' -> '10.4'
+        try:
+            return float(response)
+        except ValueError:
+            return float(response[:response.rfind(' ')])  #remove last chars until space = remove unit like '10.5 dBm' -> '10.4'
 
     def input_attenuator(self, att: int = None):
         """Sets the input attenuator of the spectrum analyzer. [dB]
@@ -411,11 +416,15 @@ class PySiglent_SSA3000x:
     def input_attenuator_auto(self, enable: bool = None):
         """This command turns on/off auto input port attenuator state.
         Gets input port attenuator state"""
+        if type(enable) == bool:
+            enable = int(enable)
         return self._string_to_bool(self._set_get(':POWer:ATTenuation:AUTO', enable))  # todo : test resolution
 
     def input_preamp_enable(self, enable: bool = None):
         """Turns the internal preamp on/off.
         Gets preamp on-off state."""
+        if type(enable) == bool:
+            enable = int(enable)
         return self._string_to_bool(self._set_get(':POWer:GAIN', enable))  # todo : test resolution
 
     def amplitude_offset(self, offset: float = None):
@@ -423,7 +432,11 @@ class PySiglent_SSA3000x:
         Gets reference offsets."""
         if offset is not None and not self.amplitude_offset_min <= offset <= self.amplitude_offset_max:
             raise self.Exceptions.ReferenceLevelOutOfRange(offset)
-        return float(self._set_get(':DISPlay:WINDow:TRACe:Y:SCALe:RLEVel:OFFSet', offset))
+        response:str = self._set_get(':DISPlay:WINDow:TRACe:Y:SCALe:RLEVel:OFFSet', offset)
+        try:
+            return float(response)
+        except ValueError:
+            return float(response[:response.rfind(' ')])
 
     # amplitude unit not implemented
     def scale_mode(self, scale: str = None):
@@ -450,6 +463,8 @@ class PySiglent_SSA3000x:
 
     def resolution_bw_auto(self, mode: bool = None):
         """Turns on/off auto resolution bandwidth state."""
+        if type(mode) == bool:
+            mode = int(mode)
         return self._string_to_bool(self._set_get(':SENSe:BWIDth:RESolution:AUTO', mode))
 
     def video_bw(self, vbw: int = None):
@@ -460,6 +475,8 @@ class PySiglent_SSA3000x:
 
     def video_bw_auto(self, mode: bool = None):
         """This command turns on/off auto video bandwidth state."""
+        if type(mode) == bool:
+            mode = int(mode)
         return self._string_to_bool(self._set_get(':SENSe:BWIDth:VIDeo:AUTO', mode))
 
     def video_resolution_bandwith_ratio(self, ratio: float = None):
@@ -542,12 +559,14 @@ class PySiglent_SSA3000x:
 
     def sweep_time(self, time: float = None):
         """Specifies the time in which the instrument sweeps the display. A span value of 0 Hz causes the analyzer to enter zero span mode. In zero span the X-axis represents time rather than frequency. [s]"""
-        if time is not None and self._sweep_time_min <= time <= self._sweep_time_max:
+        if time is not None and not self._sweep_time_min <= time <= self._sweep_time_max:
             raise self.Exceptions.SweepTimeOutOFRange(time)
         return float(self._set_get(':SENSe:SWEep:TIME', time))
 
     def sweep_time_auto(self, mode: bool = None):
         """This command turns on/off auto sweep time state."""
+        if type(mode) == bool:
+            mode = int(mode)
         return self._string_to_bool(self._set_get(':SENSe:SWEep:TIME:AUTO', mode))
 
     def sweep_speed(self, mode: str = None):
